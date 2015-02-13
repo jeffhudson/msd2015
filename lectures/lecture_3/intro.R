@@ -78,12 +78,13 @@ iris %>%
   summarize(mean_sepal_length=mean(Sepal.Length),
             sd_sepal_length=sd(Sepal.Length))
 
-
 # look at the built-in diamonds dataset
 head(diamonds)
 
 # plot the number of carats vs. price, split by diamond color
 qplot(x=price, y=carat, data=diamonds, facets = . ~ color)
+qplot(data=iris,x=Petal.Width, facets = .~Species)
+ggplot(diamonds,aes(price,carat,color=cut)) + geom_point() 
 
 # see more plot examples here
 # http://had.co.nz/stat480/r/graphics.html
