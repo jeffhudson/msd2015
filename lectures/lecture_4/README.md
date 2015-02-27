@@ -4,7 +4,6 @@ regression
 intro: [the name](http://projecteuclid.org/download/pdf_1/euclid.ss/1177012581)
 
 
-
 # within machine learning
 
 - UL (x)
@@ -23,11 +22,11 @@ regression is gateway
 - loss=OSS/SSL
 - optimization=OLS
   - model known, e.g., dropping rock
-  - go through model
+  - [go through model](http://en.wikipedia.org/wiki/Linear_least_squares_(mathematics)#Derivation_of_the_normal_equations)
+)
   - linear algebra
-    + projection
+    + [projection](http://en.wikipedia.org/wiki/Ordinary_least_squares#Geometric_approach)
     + inversion
-  - interpreting results
 
 # as probability
 
@@ -42,28 +41,17 @@ regression is gateway
 - bayesianism
 - additive regularizers as MAP instead of MLE
 
-## who cares? what works?
-
-- log posterior is a convex loss in data plus a regularizer
-- [generic form](http://web.cse.ohio-state.edu/mlss09/mlss09_talks/5.june-FRI/jordan.pdf) in terms of [convex](http://en.wikipedia.org/wiki/Convex_function#Definition) functions; see also [paper](http://arxiv.org/pdf/math/0510521.pdf)
 
 # let's code
 
-- fake data
-- covariates: scale them and see what happens to coefficients
-- covariates: add some noise
-- covariates: add some linearly dependent ones
-- real data: 'views'
+- simple regression [code](https://github.com/jhofman/msd2015/blob/master/lectures/lecture_4/intro-regression.R)
+  + fake data
+  + covariates: scale them and see what happens to coefficients
+  + covariates: add some noise
+  + covariates: add some linearly dependent ones
+- real data: 'views'  
+  + (note you will have to [install](https://github.com/jhofman/msd2015/blob/master/lectures/lecture_4/install.all.the.things.R) some things)
+  + [data](https://github.com/jhofman/msd2015/blob/master/lectures/lecture_4/users.tsv.gz)
+  + [code](https://github.com/jhofman/msd2015/blob/master/lectures/lecture_4/neilsen-polyfit.R)
 - add some polynomaisl
-- do [cv.glmnet](http://cran.r-project.org/web/packages/glmnet/index.html)  examples
-
-# optimization
-
-- gradient descent
-- stochastic gradient descent
-- connect with parallelism
-
-# time permitting: BIC
-
-- derivation
-- innoculation
+- do [cv.glmnet](http://cran.r-project.org/web/packages/glmnet/index.html)  examples via some simple [code](https://github.com/jhofman/msd2015/blob/master/lectures/lecture_4/intro-glmnet.R)

@@ -1,3 +1,5 @@
+# load the needed libraries
+# (note that most of these are for making pretty plots)
 library(dplyr)
 library(ggplot2)
 library(scales)
@@ -15,6 +17,7 @@ geom.mean <- function(x,dx=0.01) {
 # read user pageview data
 users <- read.table(gzfile('users.tsv.gz'), header=T, sep="\t")
 
+<<<<<<< HEAD
 # 
 adults <- filter(users, age >= 18 & age <= 65, daily.views>0)
 males <- filter(adults, gender=="Male")
@@ -22,6 +25,17 @@ females <- filter(adults, gender=="Female")
 
 plot(lowess(x=males$age,y=males$daily.views))
 plot(lowess(x=females$age,y=females$daily.views))
+=======
+# some EDA w/lowess:
+# ( http://en.wikipedia.org/wiki/Local_regression )
+adults <- filter(users, age >= 18 & age <= 65,daily.views>0)
+males <- filter(adults,gender=="Male")
+females <- filter(adults,gender=="Female")
+
+plot(lowess(x=males$age,y=males$daily.views))
+plot(lowess(x=females$age,y=females$daily.views))
+# <\EDA>
+>>>>>>> e21f768aa539599aa802abca8da5be79377e5002
 
 # 50/50 train/test split
 set.seed(42)
