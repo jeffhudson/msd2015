@@ -13,7 +13,7 @@ theme_set(theme_bw())
 star <- graph.star(5, mode="undirected", center=1)
 plot(star)
 get.edgelist(star)
-get.adjedgelist(star)
+get.adjlist(star)
 get.adjacency(star)
 
 # create a lattice network
@@ -21,7 +21,7 @@ get.adjacency(star)
 grid <- graph.lattice(length=3, dim=2)
 plot(grid)
 get.edgelist(grid)
-get.adjedgelist(grid)
+get.adjlist(grid)
 get.adjacency(grid)
 
 # create a ring network
@@ -45,6 +45,8 @@ plot(watts.strogatz.game(1, 100, 5, 0.10), layout=layout.circle, vertex.size=1, 
 # real networks
 ########################################
 
+setwd("C:/Users/Jeff.Bernard/Dropbox/QMSS/gitpages/msd2015/lectures/lecture_10")
+
 ### washington dc road network 
 # read in edge list
 dc_edges <- read.table('dc_road_network.tsv', sep="\t", header=F, col.names=c('src','dst'))
@@ -61,7 +63,7 @@ dc_degree_dist <- dc_edges %>%
   summarize(degree=n()) %>%
   group_by(degree) %>%
   summarize(num_nodes=n())
-qplot(x=degree, y=num_nodes, data=dc_degree_dist, geom="line", xlab="Degree", ylab="Number of nodes")
+qplot(x=degree, y=num_nodes, data=dc_degree_dist, geom="bar", xlab="Degree", ylab="Number of nodes", stat="identity")
 
 # plot distribution of path lengths
 path_lengths <- path.length.hist(dc_graph)$res
