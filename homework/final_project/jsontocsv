@@ -1,0 +1,10 @@
+
+f = open('in'+filenumber+'.txt')
+	for line in f:
+		l = []
+		for val in line.split():
+			l.append(int(val))
+		G.append(l)
+	f.close()
+
+
