@@ -1,0 +1,89 @@
+---
+title: "A/B Testing"
+author: "Jake Hofman"
+date: "April 17, 2015"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+
+
+```{r}
+library(ggplot2)
+library(reshape)
+library(dplyr)
+
+theme_set(theme_bw())
+
+set.seed(42)
+```
+
+# Comparing two proportions
+## Point estimates and sampling distributions
+Repeatedly flip two coins, each 500 times and estimate their bias.
+```{r}
+estimate_coin_bias <- function(n, p) {
+  mean(rbinom(n,1,p))
+}
+
+pa <- 0.12
+pb <- 0.08
+n <- 500
+pa_hat <- replicate(1e5, estimate_coin_bias(n, pa))
+pb_hat <- replicate(1e5, estimate_coin_bias(n, pb))
+
+# wrangle the results into one data frame
+plot_data <- rbind(data.frame(split='A', trial=1:length(pa_hat), p_hat=pa_hat),
+                   data.frame(split='B', trial=1:length(pb_hat), p_hat=pb_hat))
+
+# plot the sampling distributions for each split
+qplot(data=plot_data, x=p_hat, fill=split, alpha=0.5, geom="histogram", position="identity", binwidth=0.002) + scale_alpha(guide=F)
+
+# plot the sampling distribution of the difference
+qplot(x=pa_hat-pb_hat, geom="histogram", binwidth=0.002) +
+  geom_vline(xintercept=pa-pb) +
+  geom_vline(xintercept=mean(pa_hat-pb_hat), linetype=2, color="red")
+
+# note that variances add for independent random variables
+variance_of_difference <- var(pa_hat - pb_hat)
+sum_of_variances <- var(pa_hat) + var(pb_hat)
+```
+
+## Confidence intervals
+```{r}
+# plot 100 confidence intervals by split
+plot_data <- transform(plot_data, 
+                       LCL = p_hat - 1.96*sqrt(p_hat*(1-p_hat)/n),
+                       UCL = p_hat + 1.96*sqrt(p_hat*(1-p_hat)/n))
+plot_data <- subset(plot_data, trial <= 100)
+ggplot(data=plot_data, aes(x=trial, y=p_hat, linetype=split, position="dodge")) +
+  geom_pointrange(aes(ymin=LCL, ymax=UCL)) +
+  xlab('') +
+  theme(legend.title=element_blank())
+```
+
+## Hypothesis testing
+```{r}
+# construct a null distribution: what would happen if both coins had the same bias (e.g., A and B are the same)?
+p0a <- 0.08
+p0b <- 0.08
+n <- 500
+dp0_hat <- replicate(1e5, estimate_coin_bias(n, p0a)) -
+           replicate(1e5, estimate_coin_bias(n, p0b))
+
+# run one experiment where there is an underlying difference
+pa <- 0.12
+pb <- 0.08
+dp_hat <- estimate_coin_bias(n, pa) - estimate_coin_bias(n, pb)
+
+# plot the null distribution and see where the observed estimate lies in it
+qplot(x=dp0_hat, geom="histogram", binwidth=0.01) +
+  geom_vline(xintercept=dp_hat, linetype=2, color="red")
+
+# compare this to our experiment
+# how likely is it that we would see an estimate this extreme both coins were identical?
+num_as_extreme <- sum(dp0_hat >= dp_hat)
+p_value <- num_as_extreme / length(dp0_hat)
+```
+Only `r num_as_extreme` out of `r length(dp0_hat)` estimates from two identical coins with p=0.08 would result in an estimate of dp_hat=`r dp_hat` or smaller, corresponding to a p-value of `r p_value`.
