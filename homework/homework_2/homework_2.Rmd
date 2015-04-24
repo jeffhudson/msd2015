@@ -1,0 +1,201 @@
+---
+title: "MSD Homework 2"
+author: "Jeff Hudson (jdh2182)"
+date: "Monday, April 20, 2015"
+output: pdf_document
+---
+
+### 1. Cross-validation for polynomial regression
+
+In this problem you will use cross-validation to determine a best-fit polynomial for the data provided in `polyfit.tsv`.
+
+Use a 50% train / 50% test split to select the polynomial degree with the smallest test error, as measured by RMSE.
+You may use `lm()` to fit models along with the `poly()` function.
+
+Provide a plot of the training and test error as a function of the polynomial degree, indicating the optimal degree.
+For this optimal degree, also provide a separate scatter plot of the data with the best-fit model overlayed.
+Report the coefficients for the best-fit model.
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+library(ggplot2)
+library(dplyr)
+theme_set(theme_bw())
+
+setwd("C:/Users/Jeff.Bernard/Dropbox/QMSS/gitpages/msd2015/homework/homework_2/problem_1/")
+# read data
+data <- read.table('polyfit.tsv', header=T)
+
+# split into train / test data
+set.seed(10034)
+ttsplit <- 0.5 # given in problem description
+test <- sample.int(nrow(data),nrow(data)*ttsplit)
+testset <- data[test,]
+trainset <- data[-test,]
+
+# fit a model and compute train / test error for each degree
+fit_poly <- function(trainset,testset,num_poly=50){
+  fit <- list()
+  RMSE <- matrix(0,nrow=num_poly,ncol=3)
+  for(i in 1:num_poly){
+    trainpoly <- as.data.frame(cbind(y=trainset$y,poly(trainset$x,i,raw=T)))
+    testpoly <- as.data.frame(cbind(y=testset$y,poly(testset$x,i,raw=T)))
+    fit[[i]] <- lm(y ~ ., data=trainpoly)
+    trnRMSE <- sqrt(mean(fit[[i]]$residuals^2))
+    tstRMSE <- sqrt(mean((testpoly$y - (predict(fit[[i]],newdata=testpoly)))^2))
+    RMSE[i,] <- cbind(i,trnRMSE,tstRMSE)
+  }
+  return(list(fit,RMSE))
+}
+
+results <- fit_poly(trainset,testset)
+RMSE <- as.data.frame(results[[2]])
+
+ggplot(RMSE, aes(x=V1)) + 
+  geom_line(aes(y=V2), color="darkred") + 
+  geom_line(aes(y=V3), color="darkblue") +
+  annotate("text",label="Training Error", x=40, y=0.014, color="darkred") + 
+  annotate("text",label="Testing Error", x=40, y=0.0205, color="darkblue") +
+  labs(title="Error as function of polynomial degree",y="RMSE",x="Polynomial Degree")
+
+print(paste0("Lowest RMSE: ",round(min(RMSE$V3),4)))
+# select best model
+
+## run 50 times to ensure best polynomial fit is robust to test split idiosyncrasy
+find_best_poly <- function(n,data){
+  bestpoly <- rep(0,n)
+  for(i in 1:n){
+    test <- sample.int(nrow(data),nrow(data)*ttsplit)
+    testset <- data[test,]
+    trainset <- data[-test,]
+    results <- fit_poly(trainset,testset)
+    RMSE <- as.data.frame(results[[2]])
+    bestpoly[i] <- which.min(RMSE$V3)
+  }
+  return(bestpoly)
+}
+
+CV <- find_best_poly(50,data)
+bestpoly <- table(CV) %>% which.max %>% names %>% as.numeric
+bestmodel <- results[[1]][[bestpoly]]
+
+# report coefficients for best model
+print(paste0("Best model is polynomial of degree: ", bestpoly))
+
+print("Coefficients:")
+(coefs <- bestmodel$coef)
+
+# plot fit for best model
+model <- function(x,coefs) {
+  y <- coefs[1]
+  for(i in 1:bestpoly){
+    y <- y + (x^(i))*coefs[i+1]
+  }
+  return(y)
+}
+ggplot(data) + geom_point(aes(x,y)) + 
+  stat_function(fun=model,args=list(coefs=bestmodel$coef),color="red",size=1) +
+  labs(title="Data with fitted model shown in red")
+```
+
+### 2. Logistic regression for article classification
+
+In this problem you will use logistic regression to build a text classifier that predicts the section that an article from the New York Times (NYT) belongs to based on the words it contains.
+
+``business.tsv`` contains 1000 recent articles from the Business section of the NYT and ``world.tsv`` contains 1000 recent articles from the World section.
+``get_nyt_articles_by_section.R`` was used to create these files, and is included for completeness, but does not need to be run.
+
+Read in each file and use tools from the ``tm`` package---specifically ``VectorSource``, ``Corpus``, and ``DocumentTermMatrix``---to parse the article collection.
+Then convert it to a ``sparseMatrix`` (code provided) where each row corresponds to one article and each column to one word, and a non-zero entry indicates that an article contains that word.
+
+Then create an 80% train / 20% test split of the data and use ``cv.glmnet`` to find a best-fit logistic regression model that maximizes area under the ROC curve (AUC) for the training data.
+Provide a plot of the cross-validation curve from ``cv.glmnet``.
+Quote the accuracy and AUC on the test data and use the ``ROCR`` package to provide a plot of the ROC curve for the test data.
+Also show weights on words with top 10 weights for "business" and weights on words with the top 10 weights for "world".
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(tm)
+library(Matrix)
+library(glmnet)
+library(ROCR)
+library(ggplot2)
+library(dplyr)
+theme_set(theme_bw())
+
+# read business and world articles into one data frame
+rm(list=ls())
+setwd("C:/Users/Jeff.Bernard/Dropbox/QMSS/gitpages/msd2015/homework/homework_2/problem_2/")
+bizns <- read.table("business.tsv", fileEncoding="UTF-8")
+world <- read.table("world.tsv", fileEncoding="UTF-8")
+
+# create a Corpus from the article snippets
+VS <- VectorSource(c(as.character(bizns$snippet),as.character(world$snippet)))
+
+# remove punctuation and numbers
+Corp <- VCorpus(VS) %>% tm_map(removeNumbers) %>% tm_map(removePunctuation)
+
+# create a DocumentTermMatrix from the snippet Corpus
+dtm <- DocumentTermMatrix(Corp)
+
+# convert the DocumentTermMatrix to a sparseMatrix, required by cv.glmnet
+# helper function
+dtm_to_sparse <- function(dtm) {
+ sparseMatrix(i=dtm$i, j=dtm$j, x=dtm$v, dims=c(dtm$nrow, dtm$ncol), dimnames=dtm$dimnames)
+}
+
+sp <- dtm_to_sparse(dtm)
+rm(list=c("bizns","world","Corp","VS","dtm","dtm_to_sparse"))
+# create a train / test split
+
+set.seed(101)
+ttsplit <- 0.2
+test <- sample.int(nrow(sp),nrow(sp)*ttsplit)
+testlabels <- test < 1001
+trainlabels <- (1:nrow(sp))[-test] < 1001
+testset <- sp[test,]
+trainset <- sp[-test,]
+
+# cross-validate logistic regression with cv.glmnet, measuring auc
+crossval <- cv.glmnet(trainset, trainlabels, family="binomial", type.measure="auc", nfolds=10)
+
+get_informative_words <- function(crossval) {
+  coefs <- coef(crossval, s="lambda.min")
+  coefs <- as.data.frame(as.matrix(coefs))
+  names(coefs) <- "weight"
+  coefs$word <- row.names(coefs)
+  row.names(coefs) <- NULL
+  subset(coefs, weight != 0)
+}
+
+infowds <- get_informative_words(crossval)
+sorted <- arrange(infowds,weight)
+
+# evaluate performance for the best-fit model
+# cross-validation curve
+cvdat <- data.frame(cbind(loglambda=log(crossval$lambda),cvm=crossval$cvm,crossval$nzero))
+ggplot(cvdat, aes(x=loglambda,y=cvm)) + geom_line() + 
+  labs(title="Cross-Validation Curve",x="Log(lambda)",y="AUC")
+  #annotate(geom="text", x=log(0.00528), y=0.9, label="Lambda Min:\n0.00528\n# of words: 666")
+print("Best Lambda: 0.00528")
+print("Number of words: 666")
+# plot ROC curve and output accuracy and AUC
+preds <- predict(crossval,newx=testset)
+pred.obj <- prediction(preds,testlabels)
+ROC <- performance(pred.obj,measure="tpr",x.measure="fpr")
+acc <- round(max(performance(pred.obj,measure="acc")@y.values[[1]]),4)
+AUC <- round(performance(pred.obj,measure="auc")@y.values[[1]],4)
+
+ROCdat <- data.frame(cbind(tpr=ROC@y.values[[1]],fpr=ROC@x.values[[1]]))
+ggplot(ROCdat, aes(x=fpr,y=tpr)) + geom_line() + geom_abline(intercept=0,slope=1,linetype="dotted") +
+  labs(title="ROC Curve", x="False Positive Rate", y="True Positive Rate")
+print(paste0("Accuracy: ", acc))
+print(paste0("Area Under Curve: ", AUC))
+
+# show weights on words with top 10 weights for business
+print("Top words for 'Business' section:")
+arrange(tail(sorted,10),desc(weight))
+
+# show weights on words with top 10 weights for world
+print("Top words for 'World' section:")
+head(sorted,10)
+```

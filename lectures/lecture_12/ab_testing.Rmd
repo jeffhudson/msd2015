@@ -32,10 +32,18 @@ for(i in 1:10^5) {
   P.hat[i] <- mean(X)
 }
 
+P.hat2 <- rep(0,10^4)
+for(i in 1:10^4) {
+  X <- rbinom(1000,1,p)
+  P.hat2[i] <- mean(X)
+}
+
+
 # plot the sampling distribution
 qplot(x=P.hat, geom="histogram", binwidth=0.01) +
   geom_vline(xintercept=p) +
-  geom_vline(xintercept=mean(P.hat), linetype=2, color="red")
+  geom_vline(xintercept=mean(P.hat), linetype=2, color="red") +
+  xlim(0.08,0.55)
 ```
 
 ## Confidence interval
